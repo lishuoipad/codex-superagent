@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "teamId": "replace-with-team-id",
+  "hostId": "replace-with-real-host",
+  "router": {
+    "threadId": "replace-with-router-chat-id",
+    "title": "Router"
+  },
+  "maxInUseWorkers": 2,
+  "initialDevelopmentEnabled": false,
+  "dbPath": "/absolute/private-state/routing.sqlite3",
+  "registryPath": "/absolute/private-state/registry.sqlite3",
+  "statusPath": "/absolute/private-state/status.json",
+  "authorization": {
+    "path": "/absolute/private-state/human-authorization.json",
+    "sha256": "replace-with-the-sha256-of-the-real-authorization-file"
+  },
+  "allowedEventSources": [
+    "authorized-human-followup",
+    "authorized-worker-delivery",
+    "authorized-dependency-event"
+  ],
+  "workers": [
+    {
+      "threadId": "replace-with-worker-chat-id",
+      "taskBindingId": "replace-with-complete-task-id",
+      "title": "Worker A",
+      "state": "waiting"
+    }
+  ]
+}

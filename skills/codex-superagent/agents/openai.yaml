@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex SuperAgent"
+  short_description: "Route Codex tasks to Workers that own delivery"
+  default_prompt: "Use $codex-superagent to coordinate this project's existing plan with a lightweight Router and complete-task Workers."

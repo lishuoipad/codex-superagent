@@ -1,0 +1,13 @@
+{
+  "title": "Codex SuperAgent - Development status",
+  "state_db": "~/.codex/state_5.sqlite",
+  "checkpoints": "./checkpoints",
+  "plan": "./plan.example.json",
+  "timezone_offset_hours": 0,
+  "team_registry": "./team.local.json",
+  "runtime_status": null,
+  "friendly_plan": {},
+  "rules": [],
+  "text_replacements": {},
+  "plan_id_pattern": "\\b(?:UI|BUILD)-\\d+\\b"
+}

@@ -1,0 +1,21 @@
+Codex SuperAgent
+Copyright (c) 2026 lishuoipad
+
+Runtime, evidence utilities, dashboard and tests are derived from Agent Relay:
+https://github.com/lishuoipad/agent-relay
+Agent Relay is MIT-licensed; its copyright notice is retained in LICENSE.
+
+This initial publication uses a reviewed source snapshot that includes
+architecture work developed after Agent Relay commit
+332c847d381e41b8643c3c82f57c0e14b4d3f15e.
+It is a separate repository, not a claim that those later changes were already
+published in that historical commit.
+
+The Router / complete-task Worker design is inspired by DeepSeek's
+dsh-superagent-prototype:
+https://github.com/deepseek-ai/dsh-superagent-prototype
+Design reference: 6337fc823ce20251c8de8085948165c81aaa701e.
+
+No DeepSeek Harness executable or prototype source is bundled here.
+Codex SuperAgent is independently maintained and is not an official DeepSeek
+or OpenAI product. Product names identify the systems discussed.
