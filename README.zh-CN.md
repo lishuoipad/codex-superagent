@@ -34,9 +34,10 @@ flowchart LR
     R --> A[Worker A：完整任务]
     R --> B[Worker B：完整任务]
     R --> C[Worker C：完整任务]
+    R --> D[Worker D：完整任务]
     E[已有任务的跟进与完成事件] --> A
-    A --> D[证据与交付结果]
-    D --> R
+    A --> O[证据与交付结果]
+    O --> R
     R --> U
     S[(持久路由状态)] -.-> R
     S -.-> A
@@ -58,14 +59,14 @@ flowchart LR
 https://github.com/lishuoipad/codex-superagent/tree/main/skills/codex-superagent
 ~~~
 
-然后给出明确的项目范围：
+然后给出明确的项目范围。下面的首次接入示例采用 **1 个 Router + 4 个 Worker，共 5 个对话**。4 是可调整的项目上限，并非 Codex 或 SuperAgent 的固定上限；应结合实际就绪任务与宿主容量设置：
 
 ~~~text
 使用 $codex-superagent，沿用这个项目已有的开发计划。
-建立 1 个 Router 对话和 2 个完整任务 Worker 对话。
-我授权创建这 3 个对话，并允许它们就本项目直接互发派工、
+建立 1 个 Router 对话和 4 个完整任务 Worker 对话。
+我授权创建这 5 个对话，并允许它们就本项目直接互发派工、
 接口、依赖、交付和接收消息。
-独立 Worker 上限设为 2，保留原有验收标准。
+独立 Worker 上限设为 4，保留原有验收标准。
 先核验架构，保持开发暂停，等我明确要求启动。
 ~~~
 

@@ -34,9 +34,10 @@ flowchart LR
     R --> A[Worker A: complete task]
     R --> B[Worker B: complete task]
     R --> C[Worker C: complete task]
+    R --> D[Worker D: complete task]
     E[Known-task follow-up or completion event] --> A
-    A --> D[Evidence and scoped result]
-    D --> R
+    A --> O[Evidence and scoped result]
+    O --> R
     R --> U
     S[(Durable routing state)] -.-> R
     S -.-> A
@@ -58,14 +59,14 @@ Use $skill-installer to install:
 https://github.com/lishuoipad/codex-superagent/tree/main/skills/codex-superagent
 ~~~
 
-Then give it a concrete project and scope:
+Then give it a concrete project and scope. The first-time setup example below uses **one Router and four Workers (five chats total)**. Four is an adjustable project cap, not a fixed Codex or SuperAgent limit; match it to ready tasks and the actual host capacity:
 
 ~~~text
 Use $codex-superagent for this project's existing development plan.
-Set up one Router chat and two complete-task Worker chats.
-I authorize creating these three chats and direct project assignment,
+Set up one Router chat and four complete-task Worker chats.
+I authorize creating these five chats and direct project assignment,
 interface, dependency and delivery messages among them.
-Set the independent Worker cap to 2; preserve existing acceptance criteria.
+Set the independent Worker cap to 4; preserve existing acceptance criteria.
 Verify the setup and keep development paused until I explicitly start it.
 ~~~
 

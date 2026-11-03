@@ -6,7 +6,7 @@
     "threadId": "replace-with-router-chat-id",
     "title": "Router"
   },
-  "maxInUseWorkers": 2,
+  "maxInUseWorkers": 4,
   "initialDevelopmentEnabled": false,
   "dbPath": "/absolute/private-state/routing.sqlite3",
   "registryPath": "/absolute/private-state/registry.sqlite3",
@@ -22,9 +22,27 @@
   ],
   "workers": [
     {
-      "threadId": "replace-with-worker-chat-id",
-      "taskBindingId": "replace-with-complete-task-id",
+      "threadId": "replace-with-worker-a-chat-id",
+      "taskBindingId": "replace-with-complete-task-a-id",
       "title": "Worker A",
+      "state": "waiting"
+    },
+    {
+      "threadId": "replace-with-worker-b-chat-id",
+      "taskBindingId": "replace-with-complete-task-b-id",
+      "title": "Worker B",
+      "state": "waiting"
+    },
+    {
+      "threadId": "replace-with-worker-c-chat-id",
+      "taskBindingId": "replace-with-complete-task-c-id",
+      "title": "Worker C",
+      "state": "waiting"
+    },
+    {
+      "threadId": "replace-with-worker-d-chat-id",
+      "taskBindingId": "replace-with-complete-task-d-id",
+      "title": "Worker D",
       "state": "waiting"
     }
   ]
