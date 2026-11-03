@@ -25,3 +25,40 @@ Hidden windows, separate ports and separate worktrees do not isolate system mous
 Keep saving, account, asset and service safeguards. Changes affecting real data need the relevant test authority and safe fixture. A process disappearing is not proof that data was saved.
 
 Publish only files the user authorized for publication. Review the exact outgoing content and repository identity; remove credentials, player/customer data, live profiles, real chat IDs and screenshots with private information from public examples.
+
+## Storage closeout
+
+For projects that already require cleanup, put a `storageCloseout` object in the existing delivery JSON; do not start another artifact ledger. The field shape is:
+
+~~~json
+{
+  "storageCloseout": {
+    "schema": 1,
+    "taskBindingId": "current-complete-task",
+    "workerThreadId": "current-worker",
+    "state": "retained",
+    "reviewedScopes": ["/absolute/task/build"],
+    "removedScopes": [],
+    "releasedBytes": 0,
+    "measurement": "no_removal",
+    "retained": [{
+      "scope": "/absolute/task/build",
+      "reason": "Still used by the current consumer",
+      "owner": "Actual consumer and its task/batch",
+      "recheckWhen": "After that consumer's acceptance and repairs close"
+    }],
+    "note": "No currently safe deletion; the dependency has an owner.",
+    "evidence": []
+  }
+}
+~~~
+
+~~~text
+python /installed/skill/scripts/verify_delivery_refs.py /existing/task/delivery.json --expected-sha256 <frozen-sha> --storage-closeout --task-binding-id <current-task> --worker-thread-id <current-worker> --report /existing/task/evidence/new-storage-check.json
+~~~
+
+States: `cleaned` requires removed scopes and references to existing deletion evidence; `no_cleanup_needed` has no removals or pending retained work and explains why; `retained` lists retained scopes without removals; `blocked` may contain partial removals but keeps unresolved items with a reason, owner and recheck trigger. Include reviewed scopes and a concrete note in all cases.
+
+No removals means `releasedBytes: 0` and `measurement: "no_removal"`. Use `exclusive_file_allocation` for measured nonnegative allocated bytes, accounting for hardlinks/compression. Otherwise use `releasedBytes: null` and `measurement: "unmeasured"`. Do not substitute logical file sizes or whole-volume free-space changes. Shared retained outputs must have an actual consumer/task to handle their later closeout through existing events; do not reopen completed old bindings.
+
+This mode checks only the selected section and its direct small evidence references, not unrelated delivery references or artifact trees. It does not read APKs/large archives, follow referenced manifests, delete anything, schedule cleanup or authorize filesystem changes. A zero exit code means a complete record and matching referenced bytes, not verified reclamation or business acceptance. A valid `blocked` record explicitly returns `cleanupPending: true`. Missing records affect that delivery's closeout, not unrelated ready work.

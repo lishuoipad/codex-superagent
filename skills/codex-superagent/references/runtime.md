@@ -74,3 +74,19 @@ The optional `task_runtime_host.py` connects only through `codex app-server prox
 The reference desktop did not expose that compatible socket. This adapter has local tests but is not a generally verified desktop connection. Never start a second backend to load the same chats or use a private-IPC/queue fallback. No helper installs a service or renews its own lifetime.
 
 Keep one dispatcher/provider per event. The native-chat path and optional RPC path have separate verification evidence and must not both send the same event.
+
+## Worker titles follow accepted tasks
+
+In an adopted Router / complete-task Worker team, the Router is the single writer of task titles. On assignment, store the stable project/Worker prefix plus the short complete-task name in the existing binding's `title`. Reassignment preserves an existing `【…】` or `[…]` prefix. Substeps, waits, repairs and reservations do not rename an unfinished binding or require a new Goal.
+
+A native `receipt` for the current binding returns a `titleSync` hint. It is not evidence that a title changed. Read the real title with `list_threads`, then compare it using the existing adapter:
+
+```text
+python /absolute/scripts/task_native_delivery.py --config /absolute/runtime-config.json title-sync --input /absolute/native-titles.json
+```
+
+Input: `{"snapshots":[{"threadId":"worker-id","hostId":"host-id","source":"codex","title":"observed native title","observedAt":0}]}`. Use the actual read's UTC seconds. The existing 15-second fresh-snapshot window applies; refresh an expired read without resending the task. Only current, unfinished bindings with a consumed native event of the same generation can produce a rename action. Completed bindings and late old-task receipts cannot rename a new task. Title metadata does not require an active Worker to stop its tools.
+
+For `rename_required`, the authorized Router rechecks the current binding and latest human instructions, calls the returned `set_thread_title` arguments, then reads back the real title and compares again. Matching titles are no-ops. Save the binding/generation, intended title, actual tool result and readback in the existing handoff/team record. On failure or uncertainty, read back first and finish at the next normal handoff or existing scheduled follow-up; do not duplicate dispatch or block development.
+
+The comparison command never invokes MCP, changes routing state, Goals, models or pauses. Separate native calls are not atomic, and a plan is not authorization or proof of execution. Workers confirm the task in their ordinary receipt; the Router owns the sidebar rename, including tasks that do not use Goals.

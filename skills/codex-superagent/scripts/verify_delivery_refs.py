@@ -72,7 +72,91 @@ def hash_file(path, remaining_bytes):
     return h.hexdigest(), size
 
 
-def verify(manifest, expected_sha256, max_bytes=128 * 1024 * 1024, max_refs=1024):
+def storage_closeout_section(source, task_binding_id, worker_thread_id):
+    """Validate a task-bound disposition record, never discover or delete files."""
+    def required_text(value, label):
+        if not isinstance(value, str) or not value.strip() or len(value) > 2048:
+            raise ValueError(label + " must be nonempty bounded text")
+        return value
+
+    def scopes(value, label):
+        if not isinstance(value, list) or len(value) > 128:
+            raise ValueError(label + " must be a bounded list")
+        for item in value:
+            required_text(item, label + " item")
+        return value
+
+    required_text(task_binding_id, "expected task binding")
+    required_text(worker_thread_id, "expected Worker identity")
+    if not isinstance(source, dict) or not isinstance(source.get("storageCloseout"), dict):
+        raise ValueError("storageCloseout record required in the existing delivery")
+    record = source["storageCloseout"]
+    if type(record.get("schema")) is not int or record["schema"] != 1:
+        raise ValueError("unsupported storageCloseout schema")
+    if record.get("taskBindingId") != task_binding_id or record.get("workerThreadId") != worker_thread_id:
+        raise ValueError("storageCloseout task or Worker identity mismatch")
+    reviewed = scopes(record.get("reviewedScopes"), "reviewedScopes")
+    if not reviewed:
+        raise ValueError("reviewedScopes must identify the reviewed task outputs")
+    removed = scopes(record.get("removedScopes"), "removedScopes")
+    required_text(record.get("note"), "storageCloseout note")
+    state = record.get("state")
+    if state not in {"cleaned", "no_cleanup_needed", "retained", "blocked"}:
+        raise ValueError("unknown storageCloseout state")
+    retained = record.get("retained")
+    if not isinstance(retained, list) or len(retained) > 128:
+        raise ValueError("retained must be a bounded list")
+    for item in retained:
+        if not isinstance(item, dict):
+            raise ValueError("retained item must be an object")
+        for key in ("scope", "reason", "owner", "recheckWhen"):
+            required_text(item.get(key), "retained." + key)
+    # Lexical comparison only: removed paths need not exist and retained paths
+    # must not be scanned. Parent retention can legitimately include removed children.
+    removed_keys = {os.path.normcase(os.path.normpath(scope.strip())) for scope in removed}
+    if any(os.path.normcase(os.path.normpath(item["scope"].strip())) in removed_keys for item in retained):
+        raise ValueError("the same scope cannot be both removed and retained")
+    if state == "cleaned" and not removed:
+        raise ValueError("cleaned state needs removedScopes")
+    if state == "no_cleanup_needed" and (removed or retained):
+        raise ValueError("no_cleanup_needed cannot hide removals or retained work")
+    if state == "retained" and (removed or not retained):
+        raise ValueError("retained state needs retained scopes and no removals")
+    if state == "blocked" and not retained:
+        raise ValueError("blocked state needs an owner and recheck trigger")
+    released = record.get("releasedBytes")
+    metric = record.get("measurement")
+    if removed:
+        if metric == "exclusive_file_allocation":
+            if type(released) is not int or released < 0:
+                raise ValueError("releasedBytes must be nonnegative measured allocation")
+        elif metric == "unmeasured":
+            if released is not None:
+                raise ValueError("unmeasured releases must use null, not estimated bytes")
+        else:
+            raise ValueError("removals need exclusive_file_allocation or unmeasured")
+    elif type(released) is not int or released != 0 or metric != "no_removal":
+        raise ValueError("no removal means releasedBytes=0 and measurement=no_removal")
+    evidence = record.get("evidence")
+    if not isinstance(evidence, list) or len(evidence) > 128:
+        raise ValueError("evidence must be a bounded list")
+    for ref in evidence:
+        if not isinstance(ref, dict) or not isinstance(ref.get("path"), str) or not isinstance(ref.get("sha256"), str):
+            raise ValueError("storage evidence must use path+sha256 references")
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", ref["sha256"]):
+            raise ValueError("storage evidence requires a SHA256")
+    if removed and not evidence:
+        raise ValueError("reported removals require existing evidence references")
+    summary = {"state": state, "taskBindingId": task_binding_id, "workerThreadId": worker_thread_id,
+               "reviewedScopeCount": len(reviewed), "removedScopeCount": len(removed),
+               "releasedBytes": released, "measurement": metric, "retainedCount": len(retained),
+               "cleanupPending": state == "blocked",
+               "meaning": "record completeness and referenced bytes only; not deletion authorization or proof of reclamation"}
+    return record, summary
+
+
+def verify(manifest, expected_sha256, max_bytes=128 * 1024 * 1024, max_refs=1024,
+           *, storage_closeout=False, task_binding_id=None, worker_thread_id=None):
     """Only the supplied JSON is traversed; referenced files are hashed once."""
     report = {"schemaVersion": 1, "manifest": str(manifest), "expectedSha256": expected_sha256,
               "scope": "nested path+sha256 refs; content identity only, not acceptance",
@@ -88,6 +172,11 @@ def verify(manifest, expected_sha256, max_bytes=128 * 1024 * 1024, max_refs=1024
         report["manifestSha256"] = actual
         if actual != expected_sha256.lower():
             raise ValueError("manifest hash mismatch; no references read")
+        target = source
+        if storage_closeout:
+            target, disposition = storage_closeout_section(source, task_binding_id, worker_thread_id)
+            report["scope"] = "storageCloseout fields and referenced evidence only; not deletion or business acceptance"
+            report["storageCloseout"] = disposition
         refs = {}
 
         def visit(value, depth=0):
@@ -113,8 +202,8 @@ def verify(manifest, expected_sha256, max_bytes=128 * 1024 * 1024, max_refs=1024
                 for child in value:
                     visit(child, depth + 1)
 
-        visit(source)
-        if not refs:
+        visit(target)
+        if not refs and not storage_closeout:
             raise ValueError("no path+sha256 references found")
         for path, expected in refs.values():
             row = {"path": path, "expectedSha256": expected, "ok": False}
@@ -154,11 +243,21 @@ def main():
     parser.add_argument("--report", required=True, help="new report path in the existing task output")
     parser.add_argument("--max-bytes", type=int, default=128 * 1024 * 1024)
     parser.add_argument("--max-refs", type=int, default=1024)
+    parser.add_argument("--storage-closeout", action="store_true",
+                        help="check only storageCloseout in an existing delivery; never delete")
+    parser.add_argument("--task-binding-id")
+    parser.add_argument("--worker-thread-id")
     args = parser.parse_args()
+    if args.storage_closeout and (not args.task_binding_id or not args.worker_thread_id):
+        parser.error("--storage-closeout requires both expected task and Worker identities")
+    if not args.storage_closeout and (args.task_binding_id or args.worker_thread_id):
+        parser.error("identity arguments require --storage-closeout")
     output = local_file(args.report)
     # Reserve a new output before reading; never overwrite delivery/evidence.
     with output.open("x", encoding="utf-8", newline="\n") as stream:
-        report = verify(args.manifest, args.expected_sha256, args.max_bytes, args.max_refs)
+        report = verify(args.manifest, args.expected_sha256, args.max_bytes, args.max_refs,
+                        storage_closeout=args.storage_closeout, task_binding_id=args.task_binding_id,
+                        worker_thread_id=args.worker_thread_id)
         raw = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
         stream.write(raw)
     print(json.dumps({**summary(report), "report": str(output),

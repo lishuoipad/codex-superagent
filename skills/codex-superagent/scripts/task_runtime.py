@@ -45,6 +45,19 @@ def _id(value, label):
         raise ValueError(label + " must be a nonempty string <=256 chars")
     return value
 
+def _assigned_title(value, previous=None):
+    """Preserve a formatted Worker prefix when assigning a new complete task."""
+    if (not isinstance(value, str) or not value.strip() or len(value) > 160
+            or value != value.strip() or any(ord(c) < 32 or ord(c) == 127 for c in value)):
+        raise ValueError("Worker title must be a single nonempty line <=160 chars")
+    for opening, closing in (("【", "】"), ("[", "]")):
+        if previous and previous.startswith(opening) and closing in previous:
+            prefix = previous.split(closing, 1)[0] + closing
+            if not value.startswith(prefix) or not value[len(prefix):].strip():
+                raise ValueError("preserve the existing project/Worker prefix and name the new task")
+            break
+    return value
+
 def _number(value):
     if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
         raise ValueError("finite timestamp required")
@@ -223,11 +236,12 @@ class TaskRuntime:
             count = con.execute("SELECT count(*) FROM routing_workers WHERE team_id=? AND state!='completed'", (self.team_id,)).fetchone()[0]
             if count >= self.limit:
                 raise ValueError("in-use Worker limit reached")
+            title = _assigned_title(worker.get("title"), old["title"] if old else None)
             generation = old["generation"] + 1 if old else 1
             con.execute("""INSERT INTO routing_workers VALUES (?,?,?,?,?,?,?)
                 ON CONFLICT(team_id,thread_id) DO UPDATE SET task_id=excluded.task_id,title=excluded.title,
                 state=excluded.state,generation=excluded.generation,authority_json=excluded.authority_json""",
-                        (self.team_id, thread, task, str(worker["title"])[:160], "waiting", generation, _json(evidence)))
+                        (self.team_id, thread, task, title, "waiting", generation, _json(evidence)))
             return {"changed": True, "threadId": thread, "generation": generation}
 
     def complete(self, actor, thread_id, authority):

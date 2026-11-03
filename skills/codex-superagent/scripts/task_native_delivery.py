@@ -196,11 +196,12 @@ class NativeDelivery:
                 prior = json.loads(row["consumed_json"])
                 if {k: prior[k] for k in receipt} != receipt:
                     raise ValueError("consumption receipt already recorded; preserve original evidence")
-                return {"duplicate": True, **self._summary(row)}
+                return {"duplicate": True, **self._summary(row), "titleSync": self._title_target(con, row)}
             receipt["observedAt"] = now
             con.execute("UPDATE routing_native_deliveries SET consumed_json=? WHERE team_id=? AND event_id=?",
                         (_json(receipt), self.rt.team_id, event_id))
-            return {"duplicate": False, **self._summary(self._row(con, event_id))}
+            current = self._row(con, event_id)
+            return {"duplicate": False, **self._summary(current), "titleSync": self._title_target(con, current)}
 
     def reconcile(self, actor, event_id, status, authorization, evidence, now=None):
         self.rt._actor(actor)
@@ -232,6 +233,81 @@ class NativeDelivery:
                                        "authorization": proof, "evidence": evidence}), self.rt.team_id, event_id))
             return self._summary(self._row(con, event_id))
 
+    def _title_target(self, con, row):
+        worker = con.execute("SELECT * FROM routing_workers WHERE team_id=? AND thread_id=?",
+                             (self.rt.team_id, row["recipient"])).fetchone()
+        if (not worker or worker["state"] == "completed"
+                or worker["task_id"] != row["task_id"] or worker["generation"] != row["generation"]):
+            return None
+        return {"threadId": worker["thread_id"], "hostId": self.rt.host_id,
+                "taskBindingId": worker["task_id"], "generation": worker["generation"],
+                "expectedTitle": worker["title"], "consumptionEventId": row["event_id"],
+                "nextStep": "Compare a fresh native title using title-sync; this is not a rename receipt."}
+
+    def title_sync(self, snapshots, now=None):
+        """Read-only title comparison after current-task consumption; never invoke MCP."""
+        now = _number(time.time() if now is None else now)
+        if not isinstance(snapshots, list) or len(snapshots) > 64:
+            raise ValueError("bounded native title snapshots required")
+        observed = {}
+        for snap in snapshots:
+            if not isinstance(snap, dict):
+                raise ValueError("native title snapshot must be an object")
+            tid = _id(snap.get("threadId"), "snapshot thread")
+            if tid in observed:
+                raise ValueError("duplicate native title snapshot")
+            observed[tid] = snap
+        items = []
+        with self.rt._tx() as con:
+            installed = self._installed(con)
+            workers = con.execute("SELECT * FROM routing_workers WHERE team_id=? AND state!='completed' "
+                                  "ORDER BY thread_id", (self.rt.team_id,)).fetchall()
+            for worker in workers:
+                item = {"threadId": worker["thread_id"], "hostId": self.rt.host_id,
+                        "taskBindingId": worker["task_id"], "generation": worker["generation"],
+                        "expectedTitle": worker["title"]}
+                consumed = None
+                if installed:
+                    consumed = con.execute(
+                        "SELECT e.event_id,n.consumed_json FROM routing_events e "
+                        "JOIN routing_native_deliveries n ON e.team_id=n.team_id AND e.event_id=n.event_id "
+                        "WHERE e.team_id=? AND e.recipient=? AND e.task_id=? AND e.generation=? "
+                        "AND e.state='delivered' AND n.provider=? AND n.consumed_json IS NOT NULL "
+                        "ORDER BY e.created DESC,e.event_id DESC LIMIT 1",
+                        (self.rt.team_id, worker["thread_id"], worker["task_id"],
+                         worker["generation"], PROVIDER)).fetchone()
+                snap = observed.get(worker["thread_id"])
+                if not consumed:
+                    item["state"] = "awaiting_current_task_consumption"
+                elif not snap:
+                    item["state"] = "native_title_snapshot_required"
+                else:
+                    stamp = snap.get("observedAt")
+                    try:
+                        fresh = 0 <= now - _number(stamp) <= 15
+                    except ValueError:
+                        fresh = False
+                    title = snap.get("title")
+                    if (snap.get("hostId") != self.rt.host_id or snap.get("source") != "codex"
+                            or not fresh or not isinstance(title, str) or len(title) > 512):
+                        item["state"] = "fresh_matching_native_snapshot_required"
+                    else:
+                        item.update(observedTitle=title, observedAt=stamp,
+                                    consumptionEventId=consumed["event_id"],
+                                    consumerTurnId=json.loads(consumed["consumed_json"])["consumerTurnId"])
+                        item["state"] = "matched" if title == worker["title"] else "rename_required"
+                        if item["state"] == "rename_required":
+                            item["nativeTool"] = "set_thread_title"
+                            item["arguments"] = {"source": "codex", "threadId": worker["thread_id"],
+                                                 "title": worker["title"]}
+                items.append(item)
+        return {"provider": PROVIDER, "checkedAt": now, "items": items,
+                "renameRequired": sum(i["state"] == "rename_required" for i in items),
+                "unresolved": sum(i["state"] != "matched" for i in items),
+                "scope": "Read-only comparison, not a native rename or automatic replay. "
+                         "Caller rechecks current binding/user instructions before the tool, "
+                         "then reads back title and records it in the existing handoff."}
+
     def status(self, event_id=None):
         with self.rt._tx() as con:
             if event_id is not None:
@@ -255,7 +331,7 @@ class NativeDelivery:
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--config", type=Path, required=True)
-    p.add_argument("command", choices=["prepare", "begin", "finish", "receipt", "reconcile", "status"])
+    p.add_argument("command", choices=["prepare", "begin", "finish", "receipt", "reconcile", "status", "title-sync"])
     p.add_argument("--input", type=Path)
     args = p.parse_args()
     if not args.config.is_absolute():
@@ -277,9 +353,11 @@ def main():
         result = native.receipt(data["operator"], data["eventId"], data["recipient"], data["taskBindingId"], data["consumerTurnId"], data["evidenceRef"])
     elif args.command == "reconcile":
         result = native.reconcile(data["actor"], data["eventId"], data["status"], data["authorization"], data["evidence"])
+    elif args.command == "title-sync":
+        result = native.title_sync(data.get("snapshots", []))
     else:
         result = native.status(data.get("eventId"))
-    if args.command != "status":
+    if args.command not in {"status", "title-sync"}:
         rt.export()
     print(json.dumps(result, ensure_ascii=False))
 

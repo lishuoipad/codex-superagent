@@ -26,6 +26,8 @@ The next problem was coordination: a lead busy with testing could become the que
 - **Pause-aware capacity.** Count unfinished tasks, including waiting and paused ones, against an explicit Worker limit. Preserve independent task pauses.
 - **A local dashboard.** See the current Router, Workers, subagents, public progress and plan associations without model calls.
 
+Task handoffs also keep **Worker chat titles aligned with accepted tasks**, with a native readback check. Where a project requires cleanup, existing deliveries record **storage closeout**: what was removed, what must stay and who rechecks it. These checks do not run background deletion or claim unmeasured disk savings.
+
 ## The architecture
 
 ~~~mermaid

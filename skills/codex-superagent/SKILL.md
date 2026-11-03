@@ -35,6 +35,12 @@ Read [workflow and handoffs](references/workflow.md) for setup, task scopes, cap
 - Preserve the original acceptance criteria. Existing code is not proof of actual enablement; a bug is not proof of current causation; static checks, screenshots or an idle chat are not full acceptance.
 - Reuse passing evidence only when relevant inputs and conditions match. Run failures, affected cases and previously missing checks. See [evidence and shared resources](references/evidence.md).
 
+## Storage closeout when the project requires it
+
+At a normal batch closeout and before complete-task delivery, Workers add `storageCloseout` to the **existing batch or delivery record**: reviewed/removed scopes, measured released bytes or an explicit unknown, and retained dependencies with their reason, follow-up owner and recheck trigger. Use existing inventories and cleanup authorization. Preserve live inputs, reusable caches and required evidence; task completion alone never authorizes deletion.
+
+Before releasing a completed binding, the Router runs the [storage-closeout check](references/evidence.md#storage-closeout) against the frozen delivery and current task/Worker identities. Missing or inconsistent records go back to that Owner. The Router checks completeness and referenced bytes; it does not rescan disks or delete files. Legitimate retention is valid. A blocked cleanup remains explicitly pending with an owner/trigger, rather than being reported as cleaned. A passing check does not prove deletion, savings or product acceptance. Existing in-flight work adopts this at its next safe closeout; preserve historical frozen receipts.
+
 ## Durable routing and native delivery
 
 Use [runtime integration](references/runtime.md) ([中文](references/runtime.zh-CN.md)) when registering bindings, routing events, handling ambiguous outcomes, or connecting continuation.
@@ -54,6 +60,10 @@ For an unfinished task, send the new event to its current Owner. After a complet
 A user-authorized native scheduled follow-up may check for missed events in the existing Router chat. Verify real wakeup, delivery, deduplication and consumption before relying on it. It is a fallback to normal events, not a permanent model observer. Stay quiet on unchanged or non-actionable state; report meaningful failure, completion or required user action. Stop the matching follow-up when the authorized project is actually complete or when the user pauses it.
 
 Team resume never resumes an independently paused task. Device connection, a restart, an old delivery or an automation tick is not permission to resume development. Close in-flight work at its required safe boundary.
+
+## Task titles
+
+After a Worker actually accepts a new complete-task binding, the Router synchronizes its sidebar title and verifies the native readback. Preserve the project/Worker prefix; internal steps, waits, repairs and reservations do not rename the chat. This also applies to ordinary tasks without Goals. Reuse the original handoff record and the adapter's [title comparison](references/runtime.md#worker-titles-follow-accepted-tasks); a local title or consumption hint alone is not proof that the native title changed. The Router owns the rename, so Workers do not race it.
 
 ## Models, Goals and delivery
 

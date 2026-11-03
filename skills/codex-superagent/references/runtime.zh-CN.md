@@ -124,3 +124,19 @@ python /absolute/scripts/task_native_delivery.py --config /absolute/runtime-conf
 必要本地检查覆盖：等待/暂停未完成任务仍计入上限、达到上限拒绝新绑定、已完成历史不占用、已知事件直达 Owner、新需求交 Router、团队与任务各自暂停、团队恢复不解除任务暂停、暂停提交与 dispatch 的先后、旧事件不复活任务、重启不重复发送，以及结果未知停止自动重发。
 
 实际接入后才检查目标身份、事件真实送达/消费和繁忙任务不阻塞无冲突任务。用户要求暂不开发时只做不触发开发的本地/只读检查，交付中明确“架构已改、开发待命、真实执行验收尚未进行”。缺失宿主接口如实报告，不为完成验收启动开发或新后台服务。
+
+## 完整任务与对话标题同步
+
+已采用 Router / 完整任务 Worker 模式时，Router 是任务标题同步的唯一执行者。正式分配时，原绑定的 `title` 写为“固定项目／Worker 编号前缀＋当前完整任务的简短名称”；`assign` 保留已有的 `【…】` 或 `[…]` 前缀。同一未完成绑定的内部步骤、等待、返修和预留不改标题，也不为改名创建 Goal。
+
+原生 `receipt` 确认当前绑定已被实际接收后返回 `titleSync` 提示；它不是改名成功回执。Router 用 `list_threads` 获取目标的真实标题，再调用现有适配器：
+
+```text
+python /absolute/scripts/task_native_delivery.py --config /absolute/runtime-config.json title-sync --input /absolute/native-titles.json
+```
+
+输入为 `{"snapshots":[{"threadId":"worker-id","hostId":"host-id","source":"codex","title":"实际读到的标题","observedAt":0}]}`；时间填本次原生读取的 UTC 秒值。复用现有 15 秒鲜活窗口，过期只刷新读取。检查只处理当前在用绑定及同一 generation 的已消费原生事件；未接收、历史完成和旧绑定回执不会产生改名动作。运行中聊天可以改元数据，不要求停止工具或等待手机。
+
+只有 `rename_required` 才由获授权 Router 调用返回的 `set_thread_title` 参数；调用前重核当前绑定和最新人类指令，随后重新读取标题并跑同一检查。匹配时不重复改名。沿用原交接／团队绑定记录保存任务、generation、目标标题、实际工具结果及读回结果；不新建账本。暂时失败或结果未知时先读回，下一次正常接收／现有回访补齐，不重发任务或阻塞开发。
+
+此命令只比较原生快照，不调用 MCP、不写路由状态、不修改 Goal、模型或暂停。独立工具调用之间并非原子操作，准备提示不能当作工具授权或已同步。普通 Goal 模式继续由原执行者按既有 Goal 读回规则改名；本模式由 Router 同步，Worker 仅在原接收回执确认任务含义，避免双方同时改标题。
