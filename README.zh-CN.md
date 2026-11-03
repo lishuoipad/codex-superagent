@@ -12,6 +12,16 @@ Router 负责接单、归属和跨任务协调。每个 Worker 对一项完整�
 
 本项目由社区独立维护，与 DeepSeek、OpenAI 无官方隶属关系；采用 Codex 当前可用的宿主接口，不运行 DeepSeek Harness。
 
+## 三图了解项目
+
+<p align="center">
+  <a href="assets/overview/01-project-intro.png"><img src="assets/overview/01-project-intro.png" alt="项目介绍：SuperAgent 在 Codex 上的社区实现" width="32%"></a>
+  <a href="assets/overview/02-collaboration.png"><img src="assets/overview/02-collaboration.png" alt="协作方式：一个 Router 与完整任务 Worker" width="32%"></a>
+  <a href="assets/overview/03-repository.png"><img src="assets/overview/03-repository.png" alt="仓库内容：Skill、路由、计划接续和本机看板" width="32%"></a>
+</p>
+
+项目介绍、协作方式与仓库内容。点击配图可查看原图。
+
 ## 为什么做它
 
 前身 [Agent Relay](https://github.com/lishuoipad/agent-relay) 起源于一个实际限制：**我们当时使用的 Codex 环境，每个对话最多同时使用 3 个子智能体**。于是，我们让多个对话协作，各自在真实额度内使用子智能体。这个数字描述当时的环境，并非所有 Codex 版本的固定上限。

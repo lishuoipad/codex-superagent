@@ -12,6 +12,16 @@ A lightweight Router assigns ownership. Each Worker takes a complete task throug
 
 This is an independent project, unaffiliated with DeepSeek or OpenAI. It adapts the architecture to Codex's available interfaces; it does not run the DeepSeek Harness.
 
+## Visual overview
+
+<p align="center">
+  <a href="assets/overview/01-project-intro.png"><img src="assets/overview/01-project-intro.png" alt="Project introduction: SuperAgent architecture in Codex" width="32%"></a>
+  <a href="assets/overview/02-collaboration.png"><img src="assets/overview/02-collaboration.png" alt="Collaboration: one Router and complete-task Workers" width="32%"></a>
+  <a href="assets/overview/03-repository.png"><img src="assets/overview/03-repository.png" alt="Repository contents: skill, routing, continuation and dashboard" width="32%"></a>
+</p>
+
+Chinese-language overview cards. Click an image to view it at full size.
+
 ## Why we built it
 
 Our earlier project, [Agent Relay](https://github.com/lishuoipad/agent-relay), began with a practical limit: the Codex environment we used allowed three concurrent subagents per conversation. We coordinated several conversations to handle more independent work. That was an observed limit in our environment, not a universal Codex limit.
