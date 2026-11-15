@@ -28,7 +28,11 @@ Publish only files the user authorized for publication. Review the exact outgoin
 
 ## Storage closeout
 
-For projects that already require cleanup, put a `storageCloseout` object in the existing delivery JSON; do not start another artifact ledger. The field shape is:
+For projects that require cleanup, Workers add `storageCloseout` to the existing batch/delivery record at normal validation/repair closeout and before complete-task delivery. Use current inventories and cleanup authorization, with reasons for retained live inputs, reusable caches and necessary evidence. Adopt this at the next safe closeout and preserve historical frozen receipts.
+
+Before releasing a completed binding, the Router runs the identity-specific check below against the frozen delivery. Missing or inconsistent records return to that task Owner. Legitimate retention and pending cleanup keep their reasons, consumer, follow-up Owner and recheck trigger. The Router verifies the record and its direct references, and technical Owners handle authorized artifact disposition and measurement.
+
+The field shape is:
 
 ~~~json
 {

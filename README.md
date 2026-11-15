@@ -1,94 +1,97 @@
 # Codex SuperAgent
 
-![Codex SuperAgent: one Router, a team of task owners](assets/hero.svg)
-
-**One Router. Clear owners. From request to delivery.**
-
 [简体中文](README.zh-CN.md) · [Install](#get-started) · [Architecture](docs/architecture.md) · [Runtime guide](skills/codex-superagent/references/runtime.md) · [MIT](LICENSE)
 
-**Codex SuperAgent is a community implementation of the SuperAgent Router/Worker architecture for Codex**, inspired by [DeepSeek's SuperAgent prototype](https://github.com/deepseek-ai/dsh-superagent-prototype). It packages the workflow, durable routing code, continuation tools and a local dashboard into a reusable Codex skill.
+Codex SuperAgent combines project-level task decomposition, complete-task ownership, durable handoffs and a local dashboard in a reusable Codex skill. **The Router/coordinating chat owns how the project is divided and which work can run independently. Each Worker owns the complete technical outcome of its assigned task.**
 
-A lightweight Router assigns ownership. Each Worker takes a complete task through investigation, implementation, validation and repairs. Follow-ups go straight to the task owner, so the Router can keep coordinating while development continues.
+## How this differs from DeepSeek's original SuperAgent
 
-This is an independent project, unaffiliated with DeepSeek or OpenAI. It adapts the architecture to Codex's available interfaces; it does not run the DeepSeek Harness.
+The comparison uses the public research prototype's pinned default prompts and execution model.
 
-## Visual overview
+| Dimension | DeepSeek public prototype | This Codex workflow |
+| --- | --- | --- |
+| Work intake | Authorized requests and enabled-rule candidates from sources such as GitHub and Feishu become Tickets | A user supplies a project goal or remaining plan, and the coordinating chat organizes the work |
+| Main coordinator | The main Session assesses requests, routes Tickets and relays results. Default prompts assign implementation planning to Executors | The Router also owns project-level technical decomposition, coupling analysis, dependency order, write ownership and delivery boundaries |
+| Execution | An Executor investigates and implements a Ticket, using internal subagents where appropriate | A Worker investigates, plans, implements, integrates, validates and repairs its complete task within authorization |
+| Host | DeepSeek Harness, source subscriptions and its prototype runtime | Available Codex chat/subagent tools, workflow instructions and local durable-routing components |
 
-<p align="center">
-  <a href="assets/overview/01-project-intro.png"><img src="assets/overview/01-project-intro.png" alt="Project introduction: SuperAgent architecture in Codex" width="32%"></a>
-  <a href="assets/overview/02-collaboration.png"><img src="assets/overview/02-collaboration.png" alt="Collaboration: one Router and complete-task Workers" width="32%"></a>
-  <a href="assets/overview/03-repository.png"><img src="assets/overview/03-repository.png" alt="Repository contents: skill, routing, continuation and dashboard" width="32%"></a>
-</p>
+DeepSeek's default dispatch prompt assigns technical implementation planning to Executors while its main Session handles assessment and routing. Proactive admission also involves authorization, intent and scope judgments. See the pinned [orchestrator prompt](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/prompts/orchestrator.md), [dispatch rules](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/prompts/dispatch.md) and [admission instructions](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/prompts/admission.md).
 
-Chinese-language overview cards. Click an image to view it at full size.
+**Model selection follows the responsibility.** Routing already bounded requests carries less project-level technical planning. This project's Router must understand module relationships and shared state well enough to evaluate decomposition and coordination cost. That is a design inference from the role, with model suitability and productivity requiring workload-specific verification.
 
-## Why we built it
+## Project decomposition and implementation planning
 
-Our earlier project, [Agent Relay](https://github.com/lishuoipad/agent-relay), began with a practical limit: the Codex environment we used allowed three concurrent subagents per conversation. We coordinated several conversations to handle more independent work. That was an observed limit in our environment, not a universal Codex limit.
+- **The Router decides how to divide the project.** For example, whether mail and inventory screens are independent tasks, who owns their shared session state, which prerequisites come first, and who batches device acceptance.
+- **The Worker decides how to implement its task.** For a mail screen, this includes the code to change, state and interface design, error handling and the checks needed to establish completion.
 
-The next problem was coordination: a lead busy with testing could become the queue for everyone else's work. Codex SuperAgent separates **routing from technical ownership**. A Worker waiting for a phone, build or dependency keeps its task; unrelated work can move forward with another owner.
+The Router uses real requirements, entry points and current evidence. It can read relevant code or request a bounded investigation from a Worker before deciding. Ordinary implementation choices and technical acceptance stay with the task Owner.
 
-## What you get
+## Choose boundaries before concurrency
 
-- **Complete-task ownership.** Workers investigate, design, implement, integrate, validate and repair their own tasks.
-- **Durable routing.** SQLite stores bindings, subscriptions, event identity and delivery intent across process restarts.
-- **Plan-based continuation.** Read the existing project plan and acceptance records, separate development dependencies from acceptance dependencies, and identify eligible next work.
-- **Pause-aware capacity.** Count unfinished tasks, including waiting and paused ones, against an explicit Worker limit. Preserve independent task pauses.
-- **A local dashboard.** See the current Router, Workers, subagents, public progress and plan associations without model calls.
+| Verified condition | Organization |
+| --- | --- |
+| Changes depend on the same mutable state, shared interface or continuous save procedure | Keep them with one Owner, or finish the shared interface before downstream work |
+| Screens have independent implementation inputs and write scopes but share a phone for acceptance | Deliver independent work packages and batch compatible device cases with one field executor |
+| Actual callers or the remaining gap are unclear | Investigate the bounded uncertainty, then let the Router decide the task boundary |
+| A work package is delivered but overall acceptance has a dependency | Retain the unverified scope, Owner and release event until the agreed completion conditions are met |
 
-Task handoffs also keep **Worker chat titles aligned with accepted tasks**, with a native readback check. Where a project requires cleanup, existing deliveries record **storage closeout**: what was removed, what must stay and who rechecks it. These checks do not run background deletion or claim unmeasured disk savings.
+Match concurrency to genuinely ready independent work. Use existing delivery, waiting, handoff and repair records to refine the split. Reuse passing evidence when its relevant inputs and conditions still match.
 
-## The architecture
+## Responsibilities and flow
 
 ~~~mermaid
 flowchart LR
-    U[Human request] --> R[Router: ownership and dependencies]
-    R --> A[Worker A: complete task]
-    R --> B[Worker B: complete task]
-    R --> C[Worker C: complete task]
-    R --> D[Worker D: complete task]
-    E[Known-task follow-up or completion event] --> A
-    A --> O[Evidence and scoped result]
-    O --> R
+    U[User goal and existing plan] --> R[Router checks facts, decomposes work and coordinates dependencies]
+    R --> A[Worker A complete task]
+    R --> B[Worker B complete task]
+    E[Known-task follow-up] --> A
+    A --> D[Evidence, delivery and remaining dependencies]
+    B --> D
+    D --> R
     R --> U
-    S[(Durable routing state)] -.-> R
-    S -.-> A
 ~~~
 
-| Role | Responsibility |
-| --- | --- |
-| **Router** | Preserve the request, select the task owner, coordinate cross-task dependencies and conflicts, forward meaningful results. |
-| **Worker** | Own the full technical outcome, including shared wiring assigned to that task, affected validation and repairs. Use internal subagents when authorized and useful. |
+The Router preserves the overall goal, decides project-level task boundaries and resolves cross-task conflicts. Workers own in-task planning, implementation, assigned shared wiring, affected validation, delivery and repairs. One shared file has one technical writer. Devices, accounts and saves follow the project's existing exclusive-access mechanisms.
 
-One file has one writer. Device and desktop input still use the project's existing exclusive-access mechanisms. Ordinary technical decisions stay with the Worker.
+Unfinished waiting, paused, approval and repair tasks count against the project Worker cap. New facts changing the split return to the Router, while ordinary known-task follow-ups stay with their Owner. An explicitly chosen single-chat workflow follows its current project agreement.
 
 ## Get started
 
-Ask Codex's skill installer:
+Ask Codex's skill installer to install this directory.
 
 ~~~text
 Use $skill-installer to install:
 https://github.com/lishuoipad/codex-superagent/tree/main/skills/codex-superagent
 ~~~
 
-Then give it a concrete project and scope. The first-time setup example below uses **one Router and four Workers (five chats total)**. Four is an adjustable project cap, not a fixed Codex or SuperAgent limit; match it to ready tasks and the actual host capacity:
+Start with a concrete project scope and its existing plan/evidence.
 
 ~~~text
-Use $codex-superagent for this project's existing development plan.
-Set up one Router chat and four complete-task Worker chats.
-I authorize creating these five chats and direct project assignment,
-interface, dependency and delivery messages among them.
-Set the independent Worker cap to 4; preserve existing acceptance criteria.
-Verify the setup and keep development paused until I explicitly start it.
+Use $codex-superagent to review this project's remaining development plan.
+The coordinating chat owns project-level decomposition and parallel feasibility.
+Check shared state, write scope, dependencies and independently useful outcomes.
+Reuse existing authorized participants, test entry points and valid evidence.
+Preserve feature scope, acceptance criteria and human pauses.
 ~~~
 
-Setup is guided by the skill and the chat tools your host actually exposes. **The native multi-chat workflow requires host tools for chat creation, inspection and authorized messaging.** If those are unavailable, use explicitly identified existing chats and manual handoffs; do not claim automatic continuation. Installing the skill alone does not create a team, start a service or begin development.
+Creating independent chats requires an explicit request, and cross-chat messages require authorization covering the participants and purpose. Size a new team from ready work and actual host capacity. Existing teams follow their current handoff contract. Consult the [Codex skill documentation](https://learn.chatgpt.com/docs/build-skills) for supported locations, and copy the complete `skills/codex-superagent` directory for manual installation.
 
-Manual installation: copy the entire `skills/codex-superagent` folder into a skill location supported by your client. Consult the [official Codex skill documentation](https://learn.chatgpt.com/docs/build-skills); avoid duplicate installations. Existing Agent Relay teams should review the role and binding changes before switching skills.
+## Implementation and host integration
 
-### Try the routing core without a Codex session
+| Capability | Implementation |
+| --- | --- |
+| Project-level decomposition and coupling analysis | Skill-guided technical judgment by the coordinating chat |
+| Bindings, capacity, pauses and event deduplication | Local SQLite runtime with offline tests |
+| Native-chat delivery | Adapter records intent, outcome and consumption. An authorized caller invokes the actual chat tool |
+| Plan continuation | Read-only selector checks existing plan, dependencies and evidence. The Router evaluates boundaries and dispatch |
+| Titles and storage closeout | Native title readback and project-required artifact disposition in existing handoff records |
+| Local dashboard | Displays recorded state, public progress and plan associations |
 
-Python 3.10+; standard library only:
+Verify routing-state checks and decomposition quality separately. Native continuation depends on supported host interfaces and real delivery verification, with evidence for each separate tool call. Optional RPC delivery uses an existing verified control interface. See the [runtime guide](skills/codex-superagent/references/runtime.md) for integration, pauses, ambiguous sends and stopping authorized follow-ups.
+
+## Try the offline core
+
+Python 3.10+ and the standard library run the routing example and tests.
 
 ~~~bash
 git clone https://github.com/lishuoipad/codex-superagent.git
@@ -97,40 +100,12 @@ python -B examples/offline_demo.py
 python -B -m unittest discover -s tests -v
 ~~~
 
-The demo uses fictional identities and temporary state. It routes a known task to its Worker and a new request to the Router, while keeping development paused. It makes no model calls and sends no messages.
+The example uses fictional identities, temporary state and a paused development gate. Offline tests cover runtime behavior. Assess task-boundary quality and sustained development efficiency through real delivery, waiting and repair records.
 
-For real configuration, event delivery and continuation, read the [runtime guide](skills/codex-superagent/references/runtime.md). For the Windows dashboard, use its [configuration and launch guide](tools/development-status/README.md).
+## Repository and provenance
 
-## What is implemented, and what needs your host?
+- [Installable skill](skills/codex-superagent/SKILL.md) with focused workflow, runtime and evidence guides.
+- [Optional Windows dashboard](tools/development-status/README.md), offline examples and tests.
+- [Architecture](docs/architecture.md), [provenance](NOTICE) and [MIT license](LICENSE).
 
-| Capability | Current boundary |
-| --- | --- |
-| Task ownership, capacity, pause gates and event deduplication | Implemented in the local runtime; covered by offline tests. |
-| Native-chat delivery | The adapter records intent, outcome and consumption; an authorized Codex caller invokes the actual chat tool. Separate tool calls are not atomic. |
-| Continuing the project plan | The selector proposes eligible work. The Router dispatches it; the technical Owner supplies current evidence and acceptance facts. |
-| Periodic missed-event checks | Can use one user-authorized native follow-up in the Router chat. Scheduling and real wakeup must be verified on that host. |
-| Optional RPC delivery | Requires an existing compatible control socket and a matching verification receipt. No second backend or private-IPC fallback. |
-| Role separation | Enforced by workflow instructions and local routing checks, not a Codex-wide tool sandbox. |
-| Dashboard | Reads recorded state; it is not authoritative instantaneous execution status. |
-
-The reference deployment has verified native-message handoffs and task consumption. That does not prove every Codex version exposes the same interfaces or that development can run indefinitely unattended.
-
-Worker capacity is configurable, not an instruction to fill every slot. Creating more chats requires explicit human authorization. Account quotas, model limits and host subagent limits still apply. This package does not automatically switch models, restore WebSocket transport, bypass approvals or add multi-device switching.
-
-## Repository map
-
-~~~text
-skills/codex-superagent/   Installable skill, runtime code and focused guides
-tools/development-status/ Optional Windows dashboard
-examples/                 Offline routing demo
-tests/                    Runtime, delivery, continuation and dashboard checks
-docs/architecture.md      Design, provenance and implementation boundaries
-~~~
-
-## Origins and contributing
-
-The implementation grew from [Agent Relay](https://github.com/lishuoipad/agent-relay) and practical multi-chat development. The design draws on DeepSeek's [execution model](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/003-execution.md) and [architecture](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/007-architecture.md). See [NOTICE](NOTICE) for provenance.
-
-Contributions should start from a reproducible coordination failure. Include the smallest relevant evidence and affected tests. Use fictional identities; exclude credentials, private source, personal paths and live conversation data.
-
-**Less coordination overhead. Clearer ownership. Evidence before completion.**
+The implementation grew from [Agent Relay](https://github.com/lishuoipad/agent-relay). Design references include DeepSeek's [domain model](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/001-domain.md) and [execution model](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/003-execution.md). This is an independently maintained community project. Contributions should provide a reproducible coordination problem, necessary evidence and affected checks, using fictional identities in public examples.

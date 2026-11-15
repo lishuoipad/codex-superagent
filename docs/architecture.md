@@ -1,53 +1,67 @@
-# Architecture: SuperAgent ideas, Codex interfaces
+# Architecture and responsibility boundaries
 
-Codex SuperAgent adapts the Router / complete-task Worker pattern to the interfaces available in Codex. Its implementation comes from Agent Relay; it does not bundle or launch the DeepSeek Harness.
+Codex SuperAgent combines a project-coordinating Router, complete-task Workers and durable event delivery. It grew from Agent Relay's implementation, using Codex host interfaces.
 
-## The responsibility boundary
+## Project-level decomposition belongs to the Router
 
-A Router preserves the user's request, chooses ownership and coordinates cross-task dependencies. A Worker owns the complete technical outcome. Technical investigation, design, source edits, shared wiring, tests and repairs remain with that Worker.
+The Router owns how a broad project goal becomes workable tasks. It checks requirements, actual entry points, shared state, write ownership, dependency order, resource constraints and independently verifiable delivery boundaries. It can inspect the relevant code or ask a Worker for a bounded investigation, then decides whether to split, combine or sequence the work.
 
-This keeps a phone test, build or long technical investigation from turning the Router into a queue for unrelated work. It does not remove real resource dependencies or authorize two writers on the same file.
+Workers own implementation planning inside their assigned tasks, including detailed design, code, shared wiring assigned to them, affected validation and repairs. Known-task follow-ups return directly to their Owner. A new fact changing project boundaries or dependencies returns to the Router.
 
-Existing-task events retain their owner. A new task or ownership conflict goes to the Router. Internal subagents stay inside their parent's task and host quota.
+For example, the Router decides whether mail and inventory changes can proceed separately and who owns common session state. The mail Worker decides how its screen handles state, interfaces, errors and validation. The existing project plan and technical evidence support both decisions.
+
+This separation keeps project-level technical judgment with one accountable coordinator while ordinary in-task decisions stay with the executor. Ongoing project splitting is reviewed at meaningful boundary changes and normal planning points.
+
+## Coupling and delivery boundaries
+
+Use the criteria in [project-level decomposition](../skills/codex-superagent/references/workflow.md#project-level-decomposition).
+
+- Changes sharing mutable state, a tightly changing interface or a continuous device/save sequence can stay with one Owner or run in an explicit dependency order.
+- Independent implementation inputs, write scopes and useful deliverables support parallel work.
+- Later device acceptance can have a different dependency from implementation. Record both the delivered work package and the remaining acceptance Owner.
+- A scoped investigation can resolve an uncertain boundary before the Router decides.
+- Review existing delivery, waiting and repair evidence to refine the split.
+
+These are coordination decisions made from technical facts. The local selector checks recorded dependencies and references. The Router judges whether the proposed work units are cohesive.
+
+## Relationship to DeepSeek
+
+DeepSeek's pinned default [orchestrator](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/prompts/orchestrator.md) and [dispatch](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/prompts/dispatch.md) prompts assign intake/routing to the main Session and technical implementation planning to Executors. Its [admission](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/prompts/admission.md) path also evaluates proactive candidates.
+
+This Codex workflow adds project-level decomposition to the coordinating Router's responsibility. Model selection must account for that technical judgment and coupling analysis. The model implications are design inferences, assessed against actual workloads.
+
+The reference to DeepSeek identifies an architectural influence. This repository supplies its own Codex-facing components, with provenance in [NOTICE](../NOTICE).
 
 ## Components shipped here
 
-| Component | Implementation | What it does |
+| Component | Implementation | Responsibility |
 | --- | --- | --- |
-| Role workflow | [SKILL.md](../skills/codex-superagent/SKILL.md) | Establishes responsibility, authorization, evidence and pause rules. |
-| Durable runtime | [task_runtime.py](../skills/codex-superagent/scripts/task_runtime.py) | Bindings, worker capacity, generation, subscriptions, deduplication and dispatch state. |
-| Native-tool audit | [task_native_delivery.py](../skills/codex-superagent/scripts/task_native_delivery.py) | Records intent, native tool outcome and recipient consumption. |
-| Plan continuation | [project_continuation.py](../skills/codex-superagent/scripts/project_continuation.py) | Reads original plan/ledger and proposes eligible work or an Owner review. |
-| Optional RPC host | [task_runtime_host.py](../skills/codex-superagent/scripts/task_runtime_host.py) | Bounded delivery through an existing, verified compatible control socket. |
-| Local dashboard | [development-status](../tools/development-status/README.md) | Displays recorded team, task, subagent and public progress data. |
+| Role workflow | [SKILL.md](../skills/codex-superagent/SKILL.md) | Task decomposition, ownership, authorization, evidence and pause rules |
+| Durable runtime | [task_runtime.py](../skills/codex-superagent/scripts/task_runtime.py) | Bindings, capacity, generations, subscriptions, event identity and dispatch state |
+| Native-tool audit | [task_native_delivery.py](../skills/codex-superagent/scripts/task_native_delivery.py) | Intent, native tool outcome and recipient consumption |
+| Plan continuation | [project_continuation.py](../skills/codex-superagent/scripts/project_continuation.py) | Existing plan/ledger dependencies, eligible work and evidence-review requests |
+| Optional RPC host | [task_runtime_host.py](../skills/codex-superagent/scripts/task_runtime_host.py) | Bounded delivery through an existing verified compatible control interface |
+| Local dashboard | [development-status](../tools/development-status/README.md) | Recorded team, task, public progress and plan associations |
 
-The SQLite store and RPC transport preserve their Agent Relay module names. The delivery-reference verifier keeps its bounded JSON reader locally, so this focused package does not load the former supervision/recovery workflow. The SuperAgent workflow does not create a monitoring agent.
+The SQLite store and RPC transport retain their Agent Relay module names. The evidence verifier has a local bounded JSON reader. Guides and implementation remain focused on the current coordination workflow.
 
-## Persistence is not a second product ledger
+## Persistence and control
 
-Routing state tracks ownership, task generation, stable event IDs, delivery intent, pauses and receipt evidence. Existing project records remain authoritative for implementation and acceptance facts. The technical Owner maintains them.
+Routing state stores identity, bindings, generations, stable events, delivery intent, pauses and receipts. The original project records hold implementation and acceptance facts. Technical Owners maintain current evidence, and the Router records project-level decisions there.
 
-A hash confirms referenced bytes. It cannot establish human authorization, visual correctness or semantic acceptance. The trusted caller checks those meanings.
+The project configures a Worker cap. Unfinished waiting, paused and repair tasks continue to occupy capacity. Completed released history is outside the count. Independent-chat creation, internal subagents and communication follow their own current authorization and host limits.
 
-The Worker cap is explicit configuration. A paused or waiting unfinished task still occupies a slot. A completed, released historical chat does not. No slot automatically creates a chat or grants subagent quota.
+A human pause blocks further dispatch while in-flight work reaches its safe save/stop boundary. Team and independent task resumes are verified separately. Existing teams and single-chat projects adopt changes through their current authorized handoff.
 
-## Verification boundaries
+## Verification
 
-There are four separate questions:
+Verify each of these outcomes with its own evidence.
 
-1. Do the instructions assign the right responsibilities?
-2. Do the local runtime checks behave correctly?
-3. Does the real host deliver an authorized event to the intended chat?
-4. Did the Worker produce the required technical result?
+1. The Router used current technical facts to choose useful task boundaries.
+2. Local runtime checks handled bindings, pauses, unknown sends and event identity correctly.
+3. The real host delivered an authorized event and the intended recipient consumed it.
+4. The technical Owner delivered the required outcome and applicable acceptance.
 
-Local tests answer the second question. The reference deployment has separately exercised native-message wakeup, handoff, consumption and subsequent work. Its private operational records are not distributed. Users must validate host integration in their own environment.
+Offline tests cover local runtime behavior. Decomposition quality and development efficiency are assessed from real project outcomes. Native-tool delivery records separate calls, and each host integration needs its own verification. Role instructions and local checks describe their scope of enforcement.
 
-The native-tool adapter spans multiple calls and cannot promise an atomic pause barrier around the actual send. Router role instructions are not a host-wide tool permission sandbox. The optional RPC adapter requires a verified existing control interface and is not generally connected to Codex Desktop by installation.
-
-Model selection is an authorized human/tool decision, not an automatic property of a task name or Goal. Multi-device switching, automatic GitHub merging and permission bypasses are outside this implementation.
-
-## Relationship to DeepSeek and Agent Relay
-
-DeepSeek's [architecture reference](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/007-architecture.md) describes its own Runtime, Engine, Store and Harness integration. This project carries over the role separation and persistent event/intent ideas using different Codex-facing components. It is not a source-compatible port of that runtime.
-
-[Agent Relay](https://github.com/lishuoipad/agent-relay) also supports a traditional combined coordinator. This distribution makes the separated Router / complete-task Worker workflow the skill's focus. Existing installations and running teams are not migrated automatically.
+The optional RPC path depends on a compatible existing control interface. Model changes follow explicit authorization and supported tool parameters. Device, save, publication and account boundaries remain governed by the project.

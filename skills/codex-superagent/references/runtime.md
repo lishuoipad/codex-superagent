@@ -2,6 +2,8 @@
 
 The runtime stores routing state in its own files. Product progress and acceptance remain in the original project records. Python 3.10+ and the standard library are sufficient for local routing and tests.
 
+Project-level task decomposition belongs to the Router/coordinating chat, using current technical facts and the [workflow criteria](workflow.md#project-level-decomposition). Workers own implementation planning and acceptance inside their tasks. The local selector checks recorded fields/references, and the Router evaluates whether the candidate's boundary is useful.
+
 Detailed schemas and lifecycle guidance are also available in [中文](runtime.zh-CN.md).
 
 ## 1. Configure an explicitly authorized team

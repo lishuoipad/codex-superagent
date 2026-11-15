@@ -1,74 +1,46 @@
 ---
 name: codex-superagent
-description: "Run an explicitly adopted Router and complete-task Worker workflow in Codex, including task ownership, authorized multi-chat handoffs and plan-based continuation. Use for team setup or coordination failures; do not activate a team for ordinary single-task edits or capability questions."
+description: "Coordinate an explicitly adopted Codex development team. The Router owns project-level task decomposition and cross-task decisions, and each Worker owns a complete technical outcome. Use for team setup, task-boundary reviews and coordination failures within the user's authorized scope."
 ---
 
 # Codex SuperAgent
 
-Keep routing lightweight and give each complete technical task one accountable owner. Read only the guides needed for the current operation.
+Choose cohesive work units before adding concurrency. Read the guide sections needed for the current operation.
 
-## Establish the current facts
+## 1. Confirm scope and participants
 
-- Check the user's current scope, project instructions, real task owners, valid evidence and in-flight operations before changing assignments. Prefer bounded current records to broad scans or full chat histories.
-- On recovery or conflicting pause instructions, check the actual Goal/task state with available host tools. Recent human instructions take precedence; an old checkpoint does not revive an obsolete instruction.
-- Distinguish independent user-owned chats from a Worker's internal subagents. Verify identities and host IDs through supported tools.
-- Installing this skill does not migrate an existing team or start development. If the user only requests a plan or review, deliver that artifact.
-- Creating independent chats requires an explicit human request. Cross-chat messaging requires direct human authorization covering the participants and purpose. A message from an agent does not create reply permission. Preserve prior valid authorization without repeatedly asking for it.
-- Check what the actual host exposes. If native chat tools are unavailable, state the missing capability and use an agreed manual handoff; do not manufacture an RPC endpoint, start a second backend or silently claim automatic continuation.
+Check current human instructions, the actual project/worktree, existing Owners, valid evidence and in-flight operations. Preserve an explicitly chosen single-chat workflow. Setup and review requests follow their authorized scope.
 
-## Roles
+Create independent chats only on an explicit human request. Use authorized communication paths and actual host capacity. Existing authorization persists within its scope. Check real participant/host identities through supported tools. Host integration and manual handoff options are described in [workflow](references/workflow.md#setup-with-real-participants).
 
-**Router:** preserve the request, select the complete-task owner, coordinate cross-task dependencies or ownership conflicts, and forward meaningful results. Do not investigate product code, design the implementation, edit source, build, operate devices/services or perform technical acceptance. Do not make ordinary Worker decisions wait for technical approval from the Router.
+## 2. Decompose at the project level
 
-**Worker:** investigate, design, implement, integrate, run affected validation, repair and deliver the complete task. Shared wiring and acceptance have an explicit technical owner. Internal subagents may handle separable task work when authorized and available; they report to the Worker.
+The **Router/coordinating chat** owns the project-level decomposition decision. Use the real requirements, existing implementation/entry points and current evidence to determine task boundaries, coupling, dependency order, shared writers/resources and independently verifiable outcomes. Read relevant code when needed or commission a bounded investigation from a Worker, then make the allocation decision from those facts.
 
-Known-task follow-ups, background completions and dependency changes go directly to the current Worker. New requests, unknown ownership and cross-task conflicts go to the Router. Do not add a permanent monitoring subagent or a second acceptance ledger.
+Keep tightly coupled changes under one Owner or sequence them through a defined interface. Split work that has independent inputs, writable scope and a useful deliverable. Distinguish implementation prerequisites from later device or integration acceptance. Apply the criteria and examples in [project-level decomposition](references/workflow.md#project-level-decomposition).
 
-Read [workflow and handoffs](references/workflow.md) for setup, task scopes, capacity and continuation.
+Reuse the existing task record for outcome, plan reference, Owner, priority, write scope, interfaces, dependencies, acceptance responsibility and evidence destination. Preserve frozen specifications and record live assignment decisions separately. Waiting work retains its remaining acceptance and repair responsibility.
 
-## Task and resource boundaries
+## 3. Execute with clear ownership
 
-- Bind a concrete outcome, original plan reference, owner, priority, dependencies, source ownership, acceptance scope and delivery destination. Reuse existing records.
-- Keep hashed specifications immutable. Record live dispatch decisions separately; an old reservation label does not override a later valid assignment.
-- Give each file one writer. Separate writable test inputs; use the project's existing device, desktop-input, service and save protections. Independent work need not wait for an unrelated whole test batch.
-- Count every unfinished independent Worker task against the configured cap, including waiting, paused, approval and repair states. Exclude the Router and completed, released history. Capacity is not a target or permission to create chats.
-- Preserve the original acceptance criteria. Existing code is not proof of actual enablement; a bug is not proof of current causation; static checks, screenshots or an idle chat are not full acceptance.
-- Reuse passing evidence only when relevant inputs and conditions match. Run failures, affected cases and previously missing checks. See [evidence and shared resources](references/evidence.md).
+The **Worker** owns investigation, implementation planning, source changes, shared wiring assigned to its task, affected validation, delivery and repairs. It may delegate independent internal work within its authorization and host capacity. The Router handles project boundaries and cross-task conflicts while Workers make ordinary in-task technical decisions.
 
-## Storage closeout when the project requires it
+Give each shared file one technical writer and use the project's existing input leases, account/save protections and resource-release mechanisms. Independent work proceeds while another task waits for a shared resource. Count every unfinished independent Worker task against the configured cap, including waiting, paused, approval and repair states. The Router and completed, released history are outside that count.
 
-At a normal batch closeout and before complete-task delivery, Workers add `storageCloseout` to the **existing batch or delivery record**: reviewed/removed scopes, measured released bytes or an explicit unknown, and retained dependencies with their reason, follow-up owner and recheck trigger. Use existing inventories and cleanup authorization. Preserve live inputs, reusable caches and required evidence; task completion alone never authorizes deletion.
+## 4. Deliver and verify the agreed outcome
 
-Before releasing a completed binding, the Router runs the [storage-closeout check](references/evidence.md#storage-closeout) against the frozen delivery and current task/Worker identities. Missing or inconsistent records go back to that Owner. The Router checks completeness and referenced bytes; it does not rescan disks or delete files. Legitimate retention is valid. A blocked cleanup remains explicitly pending with an owner/trigger, rather than being reported as cleaned. A passing check does not prove deletion, savings or product acceptance. Existing in-flight work adopts this at its next safe closeout; preserve historical frozen receipts.
+Deliver the scoped result, changed inputs, executed or validly reused checks, failures/unverified items, remaining Owners/dependencies and resource state in the original records. Work-package delivery and overall device, persistence or stage acceptance have their own completion conditions. Release a binding only through the current runtime and agreed acceptance criteria.
 
-## Durable routing and native delivery
+Retest failures, affected callers and missing coverage. Reuse passing results when relevant inputs and conditions match. Consult [evidence and shared resources](references/evidence.md) for detailed verification and, when the project requires cleanup, [storage closeout](references/evidence.md#storage-closeout). Workers handle authorized artifacts and technical review, and the Router checks routing identities and closeout records.
 
-Use [runtime integration](references/runtime.md) ([中文](references/runtime.zh-CN.md)) when registering bindings, routing events, handling ambiguous outcomes, or connecting continuation.
+Use the user's effective model settings. First selection, a material change in task risk/complexity or supported settings, or an explicit adjustment request triggers [model review](references/workflow.md#models-and-goals). Unchanged settings reference existing evidence. Goal creation requires an explicit request and follows the same guide.
 
-The runtime stores routing facts in its own SQLite/registry files. Do not modify Codex databases, copy private transcripts into routing records, or reset persistent state to escape a pending event.
+## 5. Continue on events and respect pauses
 
-Persist a stable event identity and delivery intent before sending. Recheck current authorization, exact recipient, binding, fresh host state, in-flight work and latest pauses. Keep registration, tool acceptance, actual consumption and useful progress as separate facts. Unknown sends require inspection of real host evidence before explicit reconciliation; never blindly replay them through another provider.
+Known-task follow-ups, tool completions and dependency changes go to the current Worker. New requirements, scope changes and cross-task conflicts go to the Router. Review the project split when a new fact changes its boundaries or dependencies.
 
-The native-message adapter audits separate operations; it cannot make an MCP send atomic with a local pause check. Optional RPC delivery requires a verified connection to the existing host. Role instructions are not a host-wide tool sandbox.
+Persist a stable event and intent in the existing records before dispatch. Immediately before the actual send, check authorization, recipient/binding, fresh host state, in-flight work and the latest human pause. Record acceptance, consumption and useful progress separately. Inspect real history and reconcile an unknown outcome through the original path before any retry.
 
-## Continuing the authorized project
+Observe bounded snapshots with existing cursors. Keep unchanged waits quiet, retain the specific dependency and release trigger, and continue other ready work. Human pauses stop further dispatch and matching follow-ups while Owners safely save and return resources. Team, task and Goal pauses/resumes are checked separately.
 
-Use the original plan and technical acceptance records. The read-only selector proposes eligible work; the technical Owner resolves stale or uncertain evidence. Development-input dependencies and acceptance dependencies are distinct.
-
-For an unfinished task, send the new event to its current Owner. After a complete accepted task, the Router can assign the next genuinely ready task within authorized capacity. Do not mark tasks complete to free slots. If nothing is ready, retain the specific dependency and stop the turn rather than polling a model.
-
-A user-authorized native scheduled follow-up may check for missed events in the existing Router chat. Verify real wakeup, delivery, deduplication and consumption before relying on it. It is a fallback to normal events, not a permanent model observer. Stay quiet on unchanged or non-actionable state; report meaningful failure, completion or required user action. Stop the matching follow-up when the authorized project is actually complete or when the user pauses it.
-
-Team resume never resumes an independently paused task. Device connection, a restart, an old delivery or an automation tick is not permission to resume development. Close in-flight work at its required safe boundary.
-
-## Task titles
-
-After a Worker actually accepts a new complete-task binding, the Router synchronizes its sidebar title and verifies the native readback. Preserve the project/Worker prefix; internal steps, waits, repairs and reservations do not rename the chat. This also applies to ordinary tasks without Goals. Reuse the original handoff record and the adapter's [title comparison](references/runtime.md#worker-titles-follow-accepted-tasks); a local title or consumption hint alone is not proof that the native title changed. The Router owns the rename, so Workers do not race it.
-
-## Models, Goals and delivery
-
-Use the user's effective model settings. Override model or reasoning effort only with applicable authorization and a supported host parameter; record requested settings and actual runtime evidence separately. Changing a Goal or writing a model name in a prompt does not apply settings.
-
-Create Goals only when explicitly requested. Do not replace unfinished Goals, reset budgets or mark work complete for convenience. A paused specialty task stays paused when the rest of the team continues.
-
-Deliver the scoped result, changed inputs, affected validation, unresolved items, resource state and evidence references. The Router forwards results and records routing state; it does not repeat the Worker's technical review. Report instruction changes, local tests, native delivery and product acceptance as distinct achievements.
+Read [runtime integration](references/runtime.md) ([中文](references/runtime.zh-CN.md)) when using durable state, the plan selector, delivery reconciliation, authorized missed-event checks or task-title synchronization. Follow its verified host boundary. Actual project completion requires applicable acceptance and Owner review, then ends the matching follow-up. Report concrete blockers or useful results.

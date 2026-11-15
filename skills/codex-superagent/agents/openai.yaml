@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex SuperAgent"
-  short_description: "Route Codex tasks to Workers that own delivery"
-  default_prompt: "Use $codex-superagent to coordinate this project's existing plan with a lightweight Router and complete-task Workers."
+  short_description: "Decompose Codex projects and coordinate task delivery"
+  default_prompt: "Use $codex-superagent to assess the existing project plan, let the coordinating Router own project-level decomposition, and assign cohesive tasks to Workers within current authorization."

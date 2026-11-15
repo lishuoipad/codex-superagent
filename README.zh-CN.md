@@ -1,94 +1,97 @@
 # Codex SuperAgent
 
-![Codex SuperAgent：一个 Router，一支有明确任务归属的开发团队](assets/hero.svg)
-
-**一个 Router，让每项工作都有负责人，从接单走到交付。**
-
 [English](README.md) · [安装](#开始使用) · [架构说明](docs/architecture.md) · [运行时指南](skills/codex-superagent/references/runtime.zh-CN.md) · [MIT 许可](LICENSE)
 
-**Codex SuperAgent 是 SuperAgent 的 Router／Worker 架构在 Codex 上的一个社区实现**，设计受 [DeepSeek 开源 SuperAgent 原型](https://github.com/deepseek-ai/dsh-superagent-prototype)启发。它将工作规则、持久路由、原计划接续和本机看板整理成可复用的 Codex skill。
+Codex SuperAgent 将项目级任务拆分、完整任务负责制、持久交接和本机看板组织成可复用的 Codex skill。**Router／协调主对话对“整个项目怎样拆分、哪些工作适合并行”负责，Worker 对分配后的完整技术任务负责。**
 
-Router 负责接单、归属和跨任务协调。每个 Worker 对一项完整任务的调查、实现、验证和返修负责。已有任务的后续消息直接交给负责人，让 Router 保持轻量，让开发各自推进。
+## 与 DeepSeek 原始 SuperAgent 的区别
 
-本项目由社区独立维护，与 DeepSeek、OpenAI 无官方隶属关系；采用 Codex 当前可用的宿主接口，不运行 DeepSeek Harness。
+本项目参考 DeepSeek 的公开研究原型。下面的比较以固定版本的默认角色提示和执行模型为依据。
 
-## 三图了解项目
+| 维度 | DeepSeek 公开原型 | 本项目的 Codex 工作方式 |
+| --- | --- | --- |
+| 工作入口 | GitHub、飞书等来源的请求，以及已启用规则产生的候选，形成授权工单 | 用户给出项目目标或剩余计划，协调主对话判断如何组织开发 |
+| 主协调角色 | 主 Session 研判请求、确定工单归属并转达结果，默认提示将实现规划交给 Executor | Router 还负责项目级技术拆分，判断耦合、依赖、写入归属、并行可行性和交付边界 |
+| 技术执行 | Executor 负责工单调查与实现，可使用内部子智能体 | Worker 负责完整任务的调查、实现方案、代码、接线、验证和返修，可在授权内内部委派 |
+| 执行承载 | DeepSeek Harness、来源订阅和原型运行时 | Codex 可用的聊天／子智能体工具、技能规则及本地持久路由组件 |
 
-<p align="center">
-  <a href="assets/overview/01-project-intro.png"><img src="assets/overview/01-project-intro.png" alt="项目介绍：SuperAgent 在 Codex 上的社区实现" width="32%"></a>
-  <a href="assets/overview/02-collaboration.png"><img src="assets/overview/02-collaboration.png" alt="协作方式：一个 Router 与完整任务 Worker" width="32%"></a>
-  <a href="assets/overview/03-repository.png"><img src="assets/overview/03-repository.png" alt="仓库内容：Skill、路由、计划接续和本机看板" width="32%"></a>
-</p>
+DeepSeek 的默认分派提示将主 Session 的工作限定在请求研判与路由，将具体技术规划交给执行者。原型同时支持主动候选研判，包含授权、意图和范围判断。参考其[主角色提示](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/prompts/orchestrator.md)、[分派规则](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/prompts/dispatch.md)与[候选准入](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/prompts/admission.md)。
 
-项目介绍、协作方式与仓库内容。点击配图可查看原图。
+**两种工作负担会影响模型选择。** 边界已清楚的工单路由承担较少的项目技术规划。本项目的 Router 需要理解模块关系与共享状态，判断拆分后的协调成本，因此应具备胜任这些技术判断的推理能力。这个差异是依据职责作出的设计判断，模型选型和效率收益需要结合实际任务验证。
 
-## 为什么做它
+## 项目级拆分与技术实现规划
 
-前身 [Agent Relay](https://github.com/lishuoipad/agent-relay) 起源于一个实际限制：**我们当时使用的 Codex 环境，每个对话最多同时使用 3 个子智能体**。于是，我们让多个对话协作，各自在真实额度内使用子智能体。这个数字描述当时的环境，并非所有 Codex 版本的固定上限。
+- **Router 决定任务怎样分。** 例如邮件窗口与背包能否独立开发，共用会话状态由谁统一修改，前后依赖怎样排序，手机验收由谁合批。
+- **Worker 决定一项任务怎样实现。** 例如邮件窗口需要修改哪些代码、如何组织状态和接口、怎样处理错误，以及用什么检查证明完成。
 
-后来，更明显的问题变成了协调：当主执行者忙于手机测试或技术整合，其他任务容易排队等待。新架构将**任务路由与技术负责分开**。某个 Worker 等待设备、构建或依赖时，仍然保留原任务；其他无冲突工作可以由各自负责人继续推进。
+Router 根据真实需求、代码入口和已有证据作决定。事实不足时，可以让 Worker 做一次有明确范围的调查，再据此决定拆分。任务内部的普通实现决定和技术验收由其 Owner 收口。
 
-## 它带来了什么
+## 怎样避免拆分反而拖慢开发
 
-- **完整任务负责制**：Worker 从调查、方案、代码和接线，一直负责到受影响验证与返修。
-- **可恢复的路由记录**：SQLite 保存任务绑定、订阅、事件身份与发送意图，重启后可核对原状态。
-- **沿原计划接续**：读取已有开发计划和验收记录，区分开发依赖与验收依赖，找出下一项真正就绪的工作。
-- **尊重暂停和容量**：等待、暂停、审批和返修中的未完成任务都占用名额，团队恢复不覆盖专项暂停。
-- **看得见的工作状态**：本机看板展示 Router、Worker、子智能体、公开进展及计划关联，不调用模型。
+| 已核实的条件 | 分工方式 |
+| --- | --- |
+| 多项修改依赖同一段可变状态、共享接口或连续保存流程 | 由一个 Owner 完整处理，或先完成共享接口再推进后续工作 |
+| 界面可独立实现，输入和可写范围清楚，最终共用一部手机 | 独立开发各自交付，兼容的手机用例由现场负责人合批验收 |
+| 对调用关系或实际缺口缺少证据 | 先做有界调查，Router 据事实确认任务边界 |
+| 工作包已交付，整体验收仍有依赖 | 保留未验范围、责任者与解除事件，按原完成条件收口 |
 
-任务交接还会让 **Worker 对话标题跟随已接收的完整任务**，并核对实际标题。项目要求清理时，在原交付中记录**存储收尾**：删了什么、保留什么、由谁复核。这些检查不运行后台删除，也不把未经测量的占用写成释放量。
+并发数量跟随真正就绪的独立任务。用现有记录观察有效交付、资源等待、交接和返修成本，再调整分工。相关输入和条件未变的已通过结果可以复用。
 
-## 分工一眼看清
+## 职责与工作流
 
 ~~~mermaid
 flowchart LR
-    U[用户要求] --> R[Router：任务归属与依赖协调]
-    R --> A[Worker A：完整任务]
-    R --> B[Worker B：完整任务]
-    R --> C[Worker C：完整任务]
-    R --> D[Worker D：完整任务]
-    E[已有任务的跟进与完成事件] --> A
-    A --> O[证据与交付结果]
-    O --> R
+    U[用户目标与原计划] --> R[Router 核事实、拆任务与协调依赖]
+    R --> A[Worker A 完整任务]
+    R --> B[Worker B 完整任务]
+    E[已绑定任务的后续事件] --> A
+    A --> D[证据、交付与剩余依赖]
+    B --> D
+    D --> R
     R --> U
-    S[(持久路由状态)] -.-> R
-    S -.-> A
 ~~~
 
-| 角色 | 负责什么 |
-| --- | --- |
-| **Router** | 保留原始要求、确定任务负责人、协调跨任务依赖和冲突、转达有意义的结果。 |
-| **Worker** | 完整任务的调查、实现、共享接线、验证、交付和返修；在授权与宿主额度内使用内部子智能体。 |
+Router 保留原始要求和整体计划，承担项目级拆分、任务归属及跨任务决策。Worker 负责任务内的方案、实施、共享接线、受影响验证、交付和返修。一个文件同一时刻只有一个技术写者，共享设备、账号和存档沿用项目互斥与保存入口。
 
-一个文件同一时刻只有一个写者。手机、桌面鼠标键盘等共享资源继续使用项目原有互斥入口。普通技术决定由 Worker 自主处理。
+等待、暂停、审批或返修中的未完成任务仍计入项目 Worker 上限。新事实改变任务边界时由 Router 调整分工，已有任务的普通跟进直接回到 Owner。用户明确选择单对话开发时，按该项目当前约定执行。
 
 ## 开始使用
 
-向 Codex 的技能安装器发送：
+向 Codex 的技能安装器发送以下地址。
 
 ~~~text
 使用 $skill-installer 安装：
 https://github.com/lishuoipad/codex-superagent/tree/main/skills/codex-superagent
 ~~~
 
-然后给出明确的项目范围。下面的首次接入示例采用 **1 个 Router + 4 个 Worker，共 5 个对话**。4 是可调整的项目上限，并非 Codex 或 SuperAgent 的固定上限；应结合实际就绪任务与宿主容量设置：
+给出具体项目和范围，从已有计划与证据开始。
 
 ~~~text
-使用 $codex-superagent，沿用这个项目已有的开发计划。
-建立 1 个 Router 对话和 4 个完整任务 Worker 对话。
-我授权创建这 5 个对话，并允许它们就本项目直接互发派工、
-接口、依赖、交付和接收消息。
-独立 Worker 上限设为 4，保留原有验收标准。
-先核验架构，保持开发暂停，等我明确要求启动。
+使用 $codex-superagent 审核这个项目剩余的开发计划。
+由协调主对话负责项目级拆分和并行可行性判断。
+先核共享状态、写入范围、依赖和独立交付条件，
+复用当前已授权的参与者、测试入口和有效证据。
+保留既有功能范围、验收标准和暂停要求。
 ~~~
 
-接入过程由 skill 按现有工程和宿主能力执行。**原生多对话协作需要 Codex 宿主提供创建、查看和已授权消息发送工具。** 缺少这些工具时，使用明确指定的既有对话和人工交接，不能声称已经自动接续。安装 skill 本身不会创建团队、安装后台服务或开始开发。
+新建独立对话需要明确请求，多对话通信需要覆盖参与者和用途的授权。首次建队的数量应结合就绪任务与真实宿主容量确定，原有团队按当前合同交接。安装位置以[Codex 技能文档](https://learn.chatgpt.com/docs/build-skills)及客户端为准，手工安装时复制完整的 `skills/codex-superagent` 目录。
 
-手工安装可复制完整的 `skills/codex-superagent` 文件夹到客户端支持的技能目录，位置以[官方技能文档](https://learn.chatgpt.com/docs/build-skills)为准，避免重复安装。已有 Agent Relay 团队先核对角色与任务绑定，再决定切换。
+## 已有能力与宿主接入
 
-### 先离线体验路由核心
+| 能力 | 实际承载 |
+| --- | --- |
+| 项目级拆分与耦合判断 | 技能指导协调主对话依据事实作技术判断 |
+| 绑定、容量、暂停和事件去重 | 本地 SQLite 运行时及离线测试 |
+| 原生聊天消息投递 | 适配器记录意图、结果与消费，授权调用方执行实际聊天工具 |
+| 原计划接续 | 只读选择器检查现有计划、依赖和证据，Router 判断候选任务的边界与派发 |
+| 标题与存储收尾 | 原交接中的标题读回，以及按项目要求记录的产物处置 |
+| 本机看板 | 展示已落盘状态、公开进展及计划关联 |
 
-Python 3.10 及以上，仅使用标准库：
+路由状态检查和任务拆分质量分别验证。原生接续需要宿主提供可用接口并完成真实投递核验，跨工具调用分别留证。可选 RPC 路径使用原宿主已验证的控制接口。完整接入、暂停、未知发送及回访停止规则见[运行时指南](skills/codex-superagent/references/runtime.zh-CN.md)。
+
+## 离线体验与验证
+
+Python 3.10 及以上，路由示例和测试使用标准库。
 
 ~~~bash
 git clone https://github.com/lishuoipad/codex-superagent.git
@@ -97,40 +100,12 @@ python -B examples/offline_demo.py
 python -B -m unittest discover -s tests -v
 ~~~
 
-示例使用虚构身份与临时数据：已知任务路由给 Worker，新请求路由给 Router，开发开关始终保持暂停。它不会调用模型或发送消息。
+示例使用虚构身份和临时状态，开发开关保持暂停。离线测试覆盖运行时行为，拆分是否合适及长期开发效率依据真实任务中的交付、等待和返修记录核验。
 
-真实配置与事件接入见[运行时指南](skills/codex-superagent/references/runtime.zh-CN.md)；Windows 看板见[配置与启动说明](tools/development-status/README.md)。
+## 仓库与来源
 
-## 实现到了哪一步
+- [可安装技能](skills/codex-superagent/SKILL.md)及按需阅读的工作流、运行时和证据指南。
+- [可选 Windows 看板](tools/development-status/README.md)及离线路由示例、测试。
+- [架构说明](docs/architecture.md)、[来源记录](NOTICE)和 [MIT 许可](LICENSE)。
 
-| 能力 | 当前范围 |
-| --- | --- |
-| 任务绑定、名额、暂停与事件去重 | 已有本地实现及离线测试。 |
-| 原生聊天消息投递 | 适配器记录意图、结果和消费；有授权的 Codex 调用方执行实际消息工具。跨工具操作并非原子事务。 |
-| 持续推进原计划 | 选择器提出有据候选，Router 负责派发，技术 Owner 维护真实就绪与验收事实。 |
-| 定时补查漏接事件 | 可使用一个经用户授权的 Router 原生回访；须核验宿主实际唤醒和接续。 |
-| 可选 RPC 投递 | 需要原宿主已有的兼容控制 socket 和匹配验证回执；不另开后端或使用私有 IPC 回退。 |
-| 职责分离 | 依靠角色规则和本地路由检查，不冒称 Codex 全局工具权限硬隔离。 |
-| 本机看板 | 展示已落盘记录及其时间，不代表瞬时执行状态。 |
-
-参考部署已核验原生消息交接、任务接收与实际接续。这不证明所有 Codex 版本都有相同接口，也不保证无限期无人值守开发。
-
-Worker 上限由项目明确设置，空位不等于应当补满，新增聊天须有明确人类授权。账户额度、模型容量和宿主子智能体限制继续有效。本项目不自动切换模型、恢复 WebSocket、绕过审批或增加多设备切换。
-
-## 仓库内容
-
-~~~text
-skills/codex-superagent/   可安装 skill、运行时代码与按需阅读的指南
-tools/development-status/ 可选 Windows 桌面看板
-examples/                 离线路由示例
-tests/                    路由、投递、接续和看板检查
-docs/architecture.md      架构、来源与实现边界
-~~~
-
-## 来源与贡献
-
-实现承接 [Agent Relay](https://github.com/lishuoipad/agent-relay) 的工程积累；设计参考 DeepSeek 的[执行模型](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/003-execution.md)及[架构说明](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/007-architecture.md)。来源说明见 [NOTICE](NOTICE)。
-
-欢迎从可复现的协调问题出发贡献改进。提交最小必要证据与受影响测试；示例使用虚构身份，不包含凭据、私有源码、个人路径或真实对话记录。
-
-**减少协调负担，明确任务归属，用证据确认完成。**
+实现承接 [Agent Relay](https://github.com/lishuoipad/agent-relay) 的工程积累，设计参考 DeepSeek 的[领域模型](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/001-domain.md)与[执行模型](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/6337fc823ce20251c8de8085948165c81aaa701e/docs/003-execution.md)。本项目由社区独立维护。贡献请提供可复现的协调问题、必要证据和受影响检查，公开示例使用虚构身份。
