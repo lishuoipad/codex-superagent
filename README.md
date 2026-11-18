@@ -81,6 +81,7 @@ Creating independent chats requires an explicit request, and cross-chat messages
 | Capability | Implementation |
 | --- | --- |
 | Project-level decomposition and coupling analysis | Skill-guided technical judgment by the coordinating chat |
+| [Chat diagnostics](skills/codex-superagent/references/runtime.md#diagnose-a-failed-or-stalled-chat) | Classifies failed requests and flags an active turn when native records show a completed command and a request-send failure |
 | Bindings, capacity, pauses and event deduplication | Local SQLite runtime with offline tests |
 | Native-chat delivery | Adapter records intent, outcome and consumption. An authorized caller invokes the actual chat tool |
 | Plan continuation | Read-only selector checks existing plan, dependencies and evidence. The Router evaluates boundaries and dispatch |

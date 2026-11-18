@@ -81,6 +81,7 @@ https://github.com/lishuoipad/codex-superagent/tree/main/skills/codex-superagent
 | 能力 | 实际承载 |
 | --- | --- |
 | 项目级拆分与耦合判断 | 技能指导协调主对话依据事实作技术判断 |
+| [聊天故障诊断](skills/codex-superagent/references/runtime.zh-CN.md#聊天失败或疑似停滞的诊断) | 区分请求拒绝与传输故障，结合工具回执和同轮日志提示疑似停滞 |
 | 绑定、容量、暂停和事件去重 | 本地 SQLite 运行时及离线测试 |
 | 原生聊天消息投递 | 适配器记录意图、结果与消费，授权调用方执行实际聊天工具 |
 | 原计划接续 | 只读选择器检查现有计划、依赖和证据，Router 判断候选任务的边界与派发 |

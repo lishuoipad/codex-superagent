@@ -41,6 +41,8 @@ Known-task follow-ups, tool completions and dependency changes go to the current
 
 Persist a stable event and intent in the existing records before dispatch. Immediately before the actual send, check authorization, recipient/binding, fresh host state, in-flight work and the latest human pause. Record acceptance, consumption and useful progress separately. Inspect real history and reconcile an unknown outcome through the original path before any retry.
 
+For a failed request or a turn that stays active after its command finishes, use [chat diagnostics](references/runtime.md#diagnose-a-failed-or-stalled-chat) to check native retry state, tool completion and prior artifacts.
+
 Observe bounded snapshots with existing cursors. Keep unchanged waits quiet, retain the specific dependency and release trigger, and continue other ready work. Human pauses stop further dispatch and matching follow-ups while Owners safely save and return resources. Team, task and Goal pauses/resumes are checked separately.
 
 Read [runtime integration](references/runtime.md) ([中文](references/runtime.zh-CN.md)) when using durable state, the plan selector, delivery reconciliation, authorized missed-event checks or task-title synchronization. Follow its verified host boundary. Actual project completion requires applicable acceptance and Owner review, then ends the matching follow-up. Report concrete blockers or useful results.

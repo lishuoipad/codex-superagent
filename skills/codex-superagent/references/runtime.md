@@ -92,3 +92,17 @@ Input: `{"snapshots":[{"threadId":"worker-id","hostId":"host-id","source":"codex
 For `rename_required`, the authorized Router rechecks the current binding and latest human instructions, calls the returned `set_thread_title` arguments, then reads back the real title and compares again. Matching titles are no-ops. Save the binding/generation, intended title, actual tool result and readback in the existing handoff/team record. On failure or uncertainty, read back first and finish at the next normal handoff or existing scheduled follow-up; do not duplicate dispatch or block development.
 
 The comparison command never invokes MCP, changes routing state, Goals, models or pauses. Separate native calls are not atomic, and a plan is not authorization or proof of execution. Workers confirm the task in their ordinary receipt; the Router owns the sidebar rename, including tasks that do not use Goals.
+
+## Diagnose a failed or stalled chat
+
+Use a recent host snapshot to distinguish a rejected request, a transport or compaction failure, and an active turn that stopped after a command. When a report is needed, use the skill's local Python script with absolute paths.
+
+~~~sh
+python scripts/failure_diagnostics.py --snapshot "$SNAPSHOT" --thread-id "$THREAD_ID" --output "$NEW_REPORT"
+~~~
+
+For a failed turn, supply the target poll from the host. To review an active local turn, capture an envelope containing `observedAt` (Unix seconds), the `polls` returned by `wait_threads`, and `turnReads` keyed by thread ID from `read_thread`. Include the same host, turn, latest command marker and complete list of item IDs, types and statuses. Omit message text, command contents and outputs. Add `--rollout` with the exact local session JSONL, `--logs` with the local SQLite log and `--review-after-seconds` with an interval based on the host's actual wait settings. The output path must be new.
+
+The advisory requires a fresh matched snapshot, a completed command, no outstanding tools in the native inventory, a stable final command record and a correlated request-send failure. An explicit retry or pending approval suppresses the advisory. Recheck other processes, device ownership, queued input and the existing deliverable before resuming. Verify that the next turn actually uses the deliverable. For HTTP 400, the local report includes available response status and allowlisted trace IDs to help the maintainer investigate.
+
+An authorized observing host can also pass this envelope to `scripts/supervision.py observe` with the target's `stallCheck` containing `rollout`, `logs` and `reviewAfterSeconds`. Use the existing store contract, registry and run ID with every action. `prepare` deduplicates events and returns a notification proposal for a fresh review. The host owns any authorized notification, interruption or continuation.

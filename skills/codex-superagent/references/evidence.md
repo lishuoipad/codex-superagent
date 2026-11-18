@@ -10,6 +10,8 @@ Retest failures, affected callers and coverage that is missing. Shared-component
 
 The bundled `scripts/verify_delivery_refs.py` checks nested local `path + sha256` references. Consult its `--help` and existing project invocation before use. Save review progress and specific dependencies in the existing record, tied to the delivery version. Do not treat a matching reference graph as acceptance.
 
+Batch related edits. Check the changed code through the shortest affected entry point. Once that check and any required save finish, continue development. Expand the check for a changed dependency, observed failure or a specific gap. Keep outstanding device and integration acceptance in the original plan.
+
 ## Visuals and uploads
 
 Use bounded tool output, explicit truncation notices and artifact references. Batch independent reads. Keep error context and enough evidence to reproduce the issue.
